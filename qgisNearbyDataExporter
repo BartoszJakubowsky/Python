@@ -1,0 +1,107 @@
+from qgis.core import QgsProject, QgsVectorLayer
+from shapely.geometry import Point
+from PyQt5.QtWidgets import QInputDialog, QMessageBox
+import openpyxl
+
+
+adressLayerName = "PA_podstawowe"
+plotLayerName = "Działki"
+filterWordsForSelectionBox = ["słup", "slup"]
+labelTextSelectionBox = "Wybierz warstwę:"
+windowTitleSelectionBox = "Wybór warstwy"
+errorWindowBox = ['Błąd', 'Nie wybrano warstwy']
+confirmWindowBox = ['Przygotuj się', 'Kliknij ok, obliczenia zajmą chwilę więc czas na kawę']
+
+header_row = ["Nr słupa", "Działka / nr domu", "Całość"]
+
+featureCityName = 'nazwa_miej'
+featureStreetName = 'nazwa_ul'
+featureHouseNumner = 'nr_domu'
+featurePlotNumber = 'numer'
+featurePoleNumber = 'Id'
+
+excelDataHouse = 'nr domu'
+excelDataPlot = 'nr działki'
+excelDataPole = 'nr słupa'
+
+excelFileName = 'Zestawienie adresów dla'
+excelFilePath = 'C:\\Users\\BFS\\Documents\\'
+
+successWindowBox = ['Wyeksportowano!', 'Udało się, zapisane pod Zestawienie adresów dla']
+
+addressLayer = QgsProject.instance().mapLayersByName(adressLayerName)[0]
+plotLayer = QgsProject.instance().mapLayersByName(plotLayerName)[0]
+def selectLayer():
+    # layersForSelectionBox = [layer.name() for layer in QgsProject.instance().mapLayers().values() if not any(keyword in layer.name().lower() for keyword in filterWordsForSelectionBox)]
+    layersForSelectionBox = [layer.name() for layer in QgsProject.instance().mapLayers().values() if filterWordsForSelectionBox[0] in layer.name().lower() or filterWordsForSelectionBox[1] in layer.name().lower()]
+
+    print(layersForSelectionBox)
+    dialog = QInputDialog()
+    dialog.setComboBoxItems(layersForSelectionBox)
+    dialog.setLabelText(labelTextSelectionBox)
+    dialog.setWindowTitle(windowTitleSelectionBox)
+    dialog.exec_()
+    
+    layerName = dialog.textValue()
+    
+    if not layerName:
+        QMessageBox.critical(None, errorWindowBox[0], errorWindowBox[1])
+        return None
+    
+    if not dialog.exec_():
+        return None
+    
+    selectedLayer = QgsProject.instance().mapLayersByName(layerName)[0]
+    return selectedLayer
+
+polesLayer = selectLayer()
+
+if polesLayer:
+    # print(f'Layer - "{polesLayer.name()}".')
+    QMessageBox.information(None, confirmWindowBox[0], confirmWindowBox[1])
+
+
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.append(header_row)
+
+    def getAddressesAttributes(point):
+        for feature in addressLayer.getFeatures():
+            if feature.geometry().asPoint().distance(point) <= 25:
+                return [feature[featureCityName], feature[featureStreetName], feature[featureHouseNumner]]
+        return None
+
+    def getPlotsAttributes(point):
+        for feature in plotLayer.getFeatures():
+            if feature.geometry().contains(point):
+                return [feature[featurePlotNumber]]
+        return None
+        
+    for poleAttribute in polesLayer.getFeatures():
+        poleCord = poleAttribute.geometry().asPoint()
+        poleId = poleAttribute[featurePoleNumber]
+
+        addressesAttributes = getAddressesAttributes(poleCord)
+        plotsAttributes = getPlotsAttributes(poleCord)
+
+        rowData = [poleId]
+
+        if addressesAttributes:
+            if len(addressesAttributes) >= 2 and addressesAttributes[1] == addressesAttributes[0]:
+                del addressesAttributes[1]
+
+            address = " ".join(addressesAttributes)
+            rowData.extend([address])
+            rowData.extend([f'{excelDataHouse} {addressesAttributes[-1]} / {excelDataPole} {poleId}'])
+        else:
+            rowData.extend(plotsAttributes)
+            rowData.extend([f'{excelDataPlot} {plotsAttributes[0]} / {excelDataPole} {poleId}'])
+
+        sheet.append(rowData)
+
+    excel_file_name = f"{excelFileName} {polesLayer.name()}.xlsx"
+    excel_file_path = f"{excelFilePath}" + excel_file_name
+    workbook.save(excel_file_path)
+
+    QMessageBox.information(None, successWindowBox[0], f"{successWindowBox[1]} {polesLayer.name()}")
+
