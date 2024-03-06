@@ -3,109 +3,8 @@ import re
 import math
 import shutil
 
-#sprawdz czy jest ogolne zestawienie
-#pobierz dane całego słupa (4 wiersze, nieskończenie wiele w bok)
-#ustaw pierwszy jako glowny m
-    #oblicz kat miedzy a b
-    #dla pierwszego kabla magistralnego ustaw zawsze kat 0 stopni
-    #dla pozostałych w drugiej czesci obliczenia
-    #dla abonenckich normalne wyliczenia
-
-#formatuj nazwe
-    #rozdziel + i - (czy ten - potrzebny? może sam +?)
-    #formatuj adss na ADSS + spacja + reszta
-    #formatuj elektryke - 
-        #jak al to al. + spacja + reszta
-
-#wstaw dane
-#skopiuj i wstaw dane
-
-#LG1 - NN
-    #E44 E45 E46 E47
-#LG1 OPTO
-    #E48 E49 E50 E51
-
-#LG2 
-    #E52 E53 E54 E55
-#LG2 OPTO
-    #E56 E57 E58 E59
-
-def countDeq():
-    def parsTuple(str):
-        return tuple(map(float, re.findall(r'\d+\.\d+', str)))
-
-    excelFile = openpyxl.load_workbook("C:\\Users\\BFS\\Documents\\polesData.xlsx")
-    sheet = excelFile.active
-
-    #get data from cells
-    tuple_a1 = parsTuple(sheet['B3'].value)
-    tuple_a2 = parsTuple(sheet['B4'].value)
-    tuple_b1 = parsTuple(sheet['C3'].value)
-    tuple_b2 = parsTuple(sheet['C4'].value)
-
-    #count vectors
-    vector1 = tuple(b - a for a, b in zip(tuple_a1, tuple_a2))
-    vector2 = tuple(b - a for a, b in zip(tuple_b1, tuple_b2))
-
-    dotProduct = sum(a * b for a, b in zip(vector1, vector2))
-    vectorLength1 = math.sqrt(sum(a**2 for a in vector1))
-    vectorLength2 = math.sqrt(sum(b**2 for b in vector2))
-
-    degCos = dotProduct / (vectorLength1 * vectorLength2)
-    deg = math.degrees(math.acos(degCos))
-
-    print(f"Kąt między wektorami wynosi: {deg} stopni")
-    excelFile.save(r"C:\Users\BFS\Documents\polesData_wyniki.xlsx")
-def fileSave(sourcePath, finalPath):
-    #Copy excel
-    shutil.copy(sourcePath, finalPath)
-
-    # Load copied excel
-    finalExcel = openpyxl.load_workbook(finalPath)
-
-    #Set the active sheet to calculator
-    finalExcel.active = finalExcel["KALKULATOR"];
-
-    #how to access cells
-        #currentSheet = finalExcel.active
-        # currentSheet['E46'] = 'test'
-    
-    finalExcel.save(finalPath)
-    finalExcel.close()
-# fileSave("C:\\Users\\BFS\\Documents\\kalkulator.xlsx", 'C:\\Users\\BFS\\Documents\\test101.xlsx')
-def formatString(inputString):
-    #trim string
-    trimmed_string = inputString.strip()
-
-    #separate satring after +
-    parts = trimmed_string.split('+')
-    parts = trimmed_string.split('-')
-
-    #format string
-    for i in range(len(parts)):
-        part = parts[i]
-
-        if 'adss' in part:
-            last_s_index = part.rfind('s')
-            parts[i] = part[:last_s_index + 1] + ' ' + part[last_s_index + 1:]
-
-        if 'al' in part:
-            if 'l.' not in part:
-                parts[i] = part.replace('l', 'l. ')
-            else:
-                parts[i] = part.replace('l.', 'l. ')
-
-        if 'asxsn' in part:
-            parts[i] = part.replace('n', 'n ')
-
-    return parts
-def getPoleFromData(data):
-    formattedString = data.strip('()')
-
-    separatedStrings = formattedString.split()
-
-    pole, function, number = separatedStrings
-    return {"pole":pole, "function": function, "number": number}
+mainCable = None;
+calculatedPoles = []
 def ReadExcelData(file_path):
     # Load the Excel file
     workbook = openpyxl.load_workbook(file_path)
@@ -138,104 +37,232 @@ def ReadExcelData(file_path):
 
     return data_table
 #table of tables -> one table one pole with all equipment
-result_table = ReadExcelData("C:\\Users\\BFS\\Documents\\polesData_wyniki.xlsx")
-# # Display the result
-# for i, data_object in enumerate(result_table, start=1):
-#     print(f"{data_object}")
 
+def countLength(cordsA, cordsB):
+    x1, y1 = cordsA
+    x2, y2 = cordsB
 
-#each table is another pole
-#if length is 0 or 1 it's an error!
-#if 2 it's automaticly K and deg should be 90 up front
-#if more it's should check
-    #if 1m and 1a it's still K
-    #if not count as normal
+    length = round(math.sqrt((x2 - x1)**2 + (y2 - y1)**2))
 
+    return length
+def countDeq(coordsA):
+    global mainCable
+    if (mainCable is None):
+        return 90
+
+    coordsB = mainCable
+
+    vector1 = [b - a for a, b in zip(coordsA[0], coordsB[0])]
+    vector2 = [b - a for a, b in zip(coordsA[1], coordsB[1])]
+
+    dotProduct = sum(a * b for a, b in zip(vector1, vector2))
+    vectorLength1 = math.sqrt(sum(a**2 for a in vector1))
+    vectorLength2 = math.sqrt(sum(b**2 for b in vector2))
+
+    if vectorLength1 == 0 or vectorLength2 == 0:
+        deg = 180
+    else:
+        degCos = dotProduct / (vectorLength1 * vectorLength2)
+        deg = round(math.degrees(math.acos(min(1, max(-1, degCos)))))
+
+    return deg + 90
+def formatCablesString(inputString):
+    #trim string
+    trimmed_string = inputString.strip()
+
+    #separate satring after +
+    parts = trimmed_string.split('+')
+    parts = trimmed_string.split('-')
+
+    #format string
+    for i in range(len(parts)):
+        part = parts[i]
+
+        if 'adss' in part:
+            last_s_index = part.rfind('s')
+            parts[i] = part[:last_s_index + 1] + ' ' + part[last_s_index + 1:]
+
+        if 'al' in part:
+            if 'l.' not in part:
+                parts[i] = part.replace('l', 'l. ')
+            else:
+                parts[i] = part.replace('l.', 'l. ')
+
+        if 'asxsn' in part:
+            parts[i] = part.replace('n', 'n ')
+
+    return parts
+def formatCoordsString(coordsA):
+
+    coordsA = coordsA.strip('()')
+    coordsA = coordsA.split(' ')
+    x1, y1 = map(float, coordsA[:2])
+ 
+    return [x1, y1];
+def getPoleFromData(data):
+    formattedString = data.strip('()')
+    separatedStrings = formattedString.split(' ')
+
+    pole, function, number = separatedStrings
+    return {"pole":pole, "function": function, "number": number}
 def handle_P(data, excel):
     indicator = data[0]
     #{"pole":pole, "function": function, "number": number}
     poleData = getPoleFromData(data[1])
     cords = data[3]
-  
-    excel['C78'] = poleData.number;
-    excel['G78'] = poleData.pole;
-    excel['J78'] = poleData.function.upper();
-    excel['G88'] = 15; #mufa
-def handle_M(data, excel, isVectorA):
-    indicator = data[0]
-    cables = formatString(data[1])
-    cord1 = data[2]
-    cord2 = data[3]
-
-    # print(excel["E53"].value) #None = empty
-    rangeVectorA = ['E44', 'E45', 'E46', 'E47', 'E48', 'E49', 'E50', 'E51']
-    rangeVectorB = ['E52', 'E53', 'E54', 'E55', 'E56', 'E57', 'E58', 'E59']
     
-    #not working 😒
+    print(poleData)
+    excel['C78'] = poleData['number']; 
+    excel['G78'] = poleData['pole'];
+    excel['J78'] = poleData['function'].upper();
+    excel['G88'] = 15; #mufa
+    excel['L78'] = "-" #stacja
+def handle_M(data, excel):
+    global mainCable
+    
+    indicator = data[0].upper()
+    cables = formatCablesString(data[1])
+    coordsA = formatCoordsString(data[2])
+    coordsB = formatCoordsString(data[3])
+
+    rangeVectorA = [['E44', 'E45', 'E46', 'E47', 'E48', 'E49', 'E50', 'E51'],
+                    ['H44', 'H45', 'H46', 'H47', 'H48', 'H49', 'H50', 'H51']]
+    rangeVectorB = [['E52', 'E53', 'E54', 'E55', 'E56', 'E57', 'E58', 'E59'],
+                    ['H52', 'H53', 'H54', 'H55', 'H56', 'H57', 'H58', 'H59']]
+    
+    rangeVectorSecondary = [['E65', 'E66', 'E67', 'E68', 'E69', 'E70', 'E71', 'E72', 'E73', 'E74', 'E75'],
+                            ['H65', 'H66', 'H67', 'H68', 'H69', 'H70', 'H71', 'H72', 'H73', 'H74', 'H75']]
+
     def putValueToCell(cable, rangeVector):
-        for i in range(len(rangeVector)):
-            cell = rangeVector[i]
-            excelCell = excel[cell]
-            excelValue = excelCell.value
-            if (excelValue == None):
-                print(excelValue)
-                excelCell = cable
-                break
+        for i in range(len(rangeVector[0])):
+            cellA = rangeVector[0][i]
+            cellB = rangeVector[1][i]
+
+            if (excel[cellA].value == None):
+                cells = excel[cellA : cellB]                
+                for cell in cells[0]:
+                    cell.value = cable[0]
+                    cable.pop(0)
+
+                return
 
     for i in range(len(cables)):
-        cable = cables[i]
-        if (isVectorA):
+        cableType = cables[i]
+        cable = [cableType, None, countDeq([coordsA, coordsB]), countLength(coordsA, coordsB)]
+        if (mainCable is None and indicator == "M"):
             putValueToCell(cable, rangeVectorA)
         else:
-            putValueToCell(cable, rangeVectorB)
-                
+            if (indicator== "M"):
+                putValueToCell(cable, rangeVectorB)
+            else: 
+                putValueToCell(cable, rangeVectorSecondary)
+
+    #if this is first cable 
+    if (mainCable is None and indicator == "M"):
+        mainCable = [coordsA, coordsB]
+
+def exportDataFromCalculatedExcel(excel):
+    global calculatedPoles
+    excel.active = excel["KALKULATOR"];
+    sheet = excel.active;
+    lp = len(calculatedPoles) + 1
+    station = sheet['L78']
+    number = sheet['C78']
+    pole = sheet['G78']
+    function = sheet['J78'].upper()
+
+    sheetRange = [['C44', 'C45', 'C46', 'C47', 'C48', 'C49', 'C50', 'C51', 'C52', 'C53', 'C54', 'C55', 'C56', 'C57', 'C58', 'C59', 'C60', 'C61', 'C62', 'C63', 'C64', 'C65', 'C66', 'C67', 'C68', 'C69', 'C70', 'C71', 'C72', 'C73', 'C74', 'C75'],
+                ['K44', 'K45', 'K46', 'K47', 'K48', 'K49', 'K50', 'K51', 'K52', 'K53', 'K54', 'K55', 'K56', 'K57', 'K58', 'K59', 'K60', 'K61', 'K62', 'K63', 'K64', 'K65', 'K66', 'K67', 'K68', 'K69', 'K70', 'K71', 'K72', 'K73', 'K74', 'K75']]
+    
+    dataFromSheetRange = []
+
+    cells = sheet[cellA : cellB]                
+    #for each row
+    for i in range(len(sheetRange[0])):
+        cellA = sheetRange[0][i]
+        cellB = sheetRange[1][i]
+        cells = excel[cellA : cellB]    
+
+        rowData = []
+        for cell in cells[0]:
+            rowData.append(cell.value)
+        dataFromSheetRange.append(rowData)
+
+    filterCell = 2 #3 column = cable type, if None == delete all array row
+    filteredDataFromSheetRange = [row for row in dataFromSheetRange if row[filterCell] is not None]
+
+    excel.active = excel[function]
+    sheet = excel.active;
+    
+    maxX = float(sheet['H4'].value)
+    maxY = float(sheet['H5'].value)
+    realMaxX = maxX*0.1
+    realMaxY = maxY*0.1
+    calcX = float(sheet["B4"].value)
+    calcY = float(sheet["B5"].value)
+    # addedX =
+    pole = {
+        "lp": lp,
+        "station" : station,
+        "number" : number,
+        "pole" : pole,
+        "function" : function, 
+        "cable" : filteredDataFromSheetRange,
+        "maxX" : maxX,
+        "maxY" : maxY,
+        "realMaxX": realMaxX,
+        "realMaxY": realMaxY,
+        "calcX" : calcX,
+        "calcY" : calcY,
+        "addedX" : addedX,
+        "addedY" : addedY
+    }   
+
+def handleExcelFile(excel, path):
+    sourceExcel = "C:\\Users\\BFS\\Documents\\kalkulator.xlsx"
+    
+    if (excel is None):
+        shutil.copy(sourceExcel, path)
+        excel = openpyxl.load_workbook(path)
+        return excel
+    else: 
+        excel.save(path)
+        excel.close()
 def handleData(data):
-    #copy / create all excel summary data
-    #####
 
     for i in range(len(data)):
+        global mainCable
+        mainCable = None
         poleData = data[i]
 
         if (len(poleData) <=1): 
             print("error", poleData)
             return any
-        #excel to copy
-        sourceExcel = "C:\\Users\\BFS\\Documents\\kalkulator.xlsx"
-        #final pole calculator excel
-        newExcel = f'C:\\Users\\BFS\\Documents\\test{i}.xlsx'
-
         
 
-        fileSave(sourceExcel, newExcel)
-        excel = openpyxl.load_workbook(newExcel)
-
+        newExcelPath = f'C:\\Users\\BFS\\Documents\\test{i}.xlsx'
+        excel = handleExcelFile(None, newExcelPath)
         excel.active = excel["KALKULATOR"];
         sheet = excel.active;
 
-        isVectorA = True;
         for j in range(len(poleData)):
             table = poleData[j]
             #for each table handle p, m, a
-            indicator = table[0]
-            if (indicator.upper() == 'P'):
-                # handle_P(table, sheet)
+            indicator = table[0].upper()
+            if (indicator == 'P'):
+                handle_P(table, sheet)
                 next
-            if (indicator.upper() == 'M'):
-                handle_M(table, sheet, isVectorA)
-                isVectorA = None
-            if (indicator.upper() == 'A'):
+            if (indicator == 'M' or indicator == "A"):
+                handle_M(table, sheet)
                 next
 
-        #copy all cables data
-        #depending on pole function, copy data
-            
+        exportDataFromCalculatedExcel()
+        handleExcelFile(excel, newExcelPath)
+
+def exportCalculatedData():
+    return
+
+result_table = ReadExcelData("C:\\Users\\BFS\\Documents\\polesData_wyniki.xlsx")
 handleData(result_table)
 
-#kolejność
-    #ReadExcelData
-    #fileSave => nowy kalkulator
-    #handleData
-        #dla każdego przyupadku handle...m, handle_p itd
-        #każdy przypadek wysyła instrukcję co robić do dataPutter
-    #zapisz plik
 
