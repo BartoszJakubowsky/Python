@@ -1,7 +1,11 @@
 import openpyxl
+from openpyxl.styles import Alignment, Border, Side
+
 import re
 import math
 import shutil
+import xlwings
+from pathlib import Path
 
 mainCable = None;
 calculatedPoles = []
@@ -162,26 +166,26 @@ def handle_M(data, excel):
         mainCable = [coordsA, coordsB]
 
 def exportDataFromCalculatedExcel(excel):
+
     global calculatedPoles
     excel.active = excel["KALKULATOR"];
     sheet = excel.active;
     lp = len(calculatedPoles) + 1
-    station = sheet['L78']
-    number = sheet['C78']
-    pole = sheet['G78']
-    function = sheet['J78'].upper()
-
+    station = sheet['L78'].value.upper()
+    number = sheet['C78'].value
+    pole = sheet['G78'].value.upper()
+    function = sheet['J78'].value.upper()
+    
     sheetRange = [['C44', 'C45', 'C46', 'C47', 'C48', 'C49', 'C50', 'C51', 'C52', 'C53', 'C54', 'C55', 'C56', 'C57', 'C58', 'C59', 'C60', 'C61', 'C62', 'C63', 'C64', 'C65', 'C66', 'C67', 'C68', 'C69', 'C70', 'C71', 'C72', 'C73', 'C74', 'C75'],
                 ['K44', 'K45', 'K46', 'K47', 'K48', 'K49', 'K50', 'K51', 'K52', 'K53', 'K54', 'K55', 'K56', 'K57', 'K58', 'K59', 'K60', 'K61', 'K62', 'K63', 'K64', 'K65', 'K66', 'K67', 'K68', 'K69', 'K70', 'K71', 'K72', 'K73', 'K74', 'K75']]
     
     dataFromSheetRange = []
 
-    cells = sheet[cellA : cellB]                
     #for each row
     for i in range(len(sheetRange[0])):
         cellA = sheetRange[0][i]
         cellB = sheetRange[1][i]
-        cells = excel[cellA : cellB]    
+        cells = sheet[cellA : cellB]                
 
         rowData = []
         for cell in cells[0]:
@@ -190,24 +194,29 @@ def exportDataFromCalculatedExcel(excel):
 
     filterCell = 2 #3 column = cable type, if None == delete all array row
     filteredDataFromSheetRange = [row for row in dataFromSheetRange if row[filterCell] is not None]
+    # filteredDataFromSheetRange = [[row for row in subRow if row is not None] for subRow in filteredDataFromSheetRange]
+    filteredDataFromSheetRange = [[row for index, row in enumerate(eachRow) if index not in (1, 3)] for eachRow in filteredDataFromSheetRange]
+
 
     excel.active = excel[function]
     sheet = excel.active;
     
-    maxX = float(sheet['H4'].value)
-    maxY = float(sheet['H5'].value)
-    realMaxX = maxX*0.1
-    realMaxY = maxY*0.1
-    calcX = float(sheet["B4"].value)
-    calcY = float(sheet["B5"].value)
-    # addedX =
+    maxX = round(float(sheet['D2'].value),2)
+    maxY = round(float(sheet['D3'].value),2)
+    realMaxX = round(maxX*0.1,2)
+    realMaxY = round(maxY*0.1,2)
+    calcX = round(float(sheet["B2"].value),2)
+    calcY = round(float(sheet["B3"].value),2)
+    addedX = round(float(sheet["G2"].value),2)
+    addedY = round(float(sheet["G3"].value),2)
+
     pole = {
         "lp": lp,
         "station" : station,
         "number" : number,
         "pole" : pole,
         "function" : function, 
-        "cable" : filteredDataFromSheetRange,
+        "cables" : filteredDataFromSheetRange,
         "maxX" : maxX,
         "maxY" : maxY,
         "realMaxX": realMaxX,
@@ -216,7 +225,16 @@ def exportDataFromCalculatedExcel(excel):
         "calcY" : calcY,
         "addedX" : addedX,
         "addedY" : addedY
-    }   
+    }
+
+    calculatedPoles.append(pole)  
+
+def cacheFormulasData(path):
+    excel_app = xlwings.App(visible=False)
+    excel_book = excel_app.books.open(path)
+    excel_book.save()
+    excel_book.close()
+    excel_app.quit()
 
 def handleExcelFile(excel, path):
     sourceExcel = "C:\\Users\\BFS\\Documents\\kalkulator.xlsx"
@@ -255,13 +273,99 @@ def handleData(data):
             if (indicator == 'M' or indicator == "A"):
                 handle_M(table, sheet)
                 next
-
-        exportDataFromCalculatedExcel()
+        
         handleExcelFile(excel, newExcelPath)
+        cacheFormulasData(newExcelPath)
+        excel = openpyxl.load_workbook(newExcelPath, data_only=True)
+
+        exportDataFromCalculatedExcel(excel)
+        handleExcelFile(excel, newExcelPath)
+    exportCalculatedData()
 
 def exportCalculatedData():
-    return
+    #check if file exist
+    #open file
+    global calculatedPoles
+    # print(calculatedPoles[0]['cables'])
+    # return
+    path = "C:\\Users\\BFS\\Documents\\ZestawienieTemp.xlsx"
+    def handleExcelForExportedData():
+        file = Path(path)
+        if (file.exists()):
+            return openpyxl.load_workbook(path)
+        else: 
+            shutil.copy("C:\\Users\\BFS\\Documents\\Zestawienie obliczeń.xlsx", path)
+            return openpyxl.load_workbook(path)
+        
+    excel = handleExcelForExportedData()
+    sheet = excel.active;
+    
+    # excelRange = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W']
+    excelCablesRange = ['F', 'G', 'H', 'I', 'J', 'K', 'L']
+    excelRestCableDataRange = ['A','B','C','D','E','M','N','O','P','Q','R','S','T',"U"]
+    
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    row = 3;
+    for calcPole in calculatedPoles:
+        lp = calcPole["lp"]
+        station = calcPole["station"]
+        number = calcPole["number"]
+        pole = calcPole["pole"]
+        function = calcPole["function"] 
+        cables = calcPole["cables"]
+        maxX = calcPole["maxX"]
+        maxY = calcPole["maxY"]
+        realMaxX = calcPole["realMaxX"]
+        realMaxY = calcPole["realMaxY"]
+        calcX = calcPole["calcX"]
+        calcY = calcPole["calcY"]
+        addedX = calcPole["addedX"]
+        addedY = calcPole["addedY"]
 
+        sheet[f'A{row}'].value = lp
+        sheet[f'B{row}'].value = station
+        sheet[f'C{row}'].value = number
+        sheet[f'D{row}'].value = pole
+        sheet[f'E{row}'].value = function
+
+        #catalog values
+        sheet[f'M{row}'].value = maxX
+        sheet[f'N{row}'].value = maxY
+
+        #max * pole state
+        sheet[f'O{row}'].value = realMaxX
+        sheet[f'P{row}'].value = realMaxY
+
+        #only electrical
+        sheet[f'Q{row}'].value = calcX
+        sheet[f'R{row}'].value = calcY
+
+        sheet[f'S{row}'].value = function
+
+        sheet[f'T{row}'].value = addedX
+        sheet[f'U{row}'].value = addedY
+
+        cableRow = row
+
+        
+        for cable in cables:
+            for i in range(len(cable)):
+                cableData = cable[i]
+                column = excelCablesRange[i]
+                cell = sheet[f'{column}{cableRow}']
+                cell.value = cableData
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+                cell.border = border
+            cableRow += 1
+
+        cableRow -= 1
+        for colRange in excelRestCableDataRange:
+            sheet.merge_cells(range_string = f'{colRange}{row}:{colRange}{cableRow}')
+            # sheet.merge_cells(start_column = colRange ,start_row = row, end_column = colRange, end_row = cableRow)
+
+        row = cableRow + 1
+
+    handleExcelFile(excel, path)
 result_table = ReadExcelData("C:\\Users\\BFS\\Documents\\polesData_wyniki.xlsx")
 handleData(result_table)
 
