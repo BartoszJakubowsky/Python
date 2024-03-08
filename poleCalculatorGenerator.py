@@ -1,5 +1,5 @@
 import openpyxl
-from openpyxl.styles import Alignment, Border, Side
+from openpyxl.styles import Alignment, Border, Side, Font, PatternFill
 
 import re
 import math
@@ -301,10 +301,14 @@ def exportCalculatedData():
     sheet = excel.active;
     
     # excelRange = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W']
-    excelCablesRange = ['F', 'G', 'H', 'I', 'J', 'K', 'L']
-    excelRestCableDataRange = ['A','B','C','D','E','M','N','O','P','Q','R','S','T',"U"]
+    excelCablesRange = ['F', 'G', 'G', 'H', 'I', 'J', 'K']
+    excelRestCableDataRange = ['A','B','C','D','E', "L", 'M','N','O','P','Q','R','S','T',"U", "V"]
     
     border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    alignment = Alignment(horizontal='center', vertical='center')
+    font = Font(bold=True)
+    fill = PatternFill(start_color='D9E1F2', end_color='D9E1F2', fill_type = "solid")
+
     row = 3;
     for calcPole in calculatedPoles:
         lp = calcPole["lp"]
@@ -322,44 +326,65 @@ def exportCalculatedData():
         addedX = calcPole["addedX"]
         addedY = calcPole["addedY"]
 
-        sheet[f'A{row}'].value = lp
+        sheet[f'A{row}'].value = str(lp)
         sheet[f'B{row}'].value = station
         sheet[f'C{row}'].value = number
         sheet[f'D{row}'].value = pole
         sheet[f'E{row}'].value = function
 
         #catalog values
-        sheet[f'M{row}'].value = maxX
-        sheet[f'N{row}'].value = maxY
+        sheet[f'L{row}'].value = str(maxX)
+        sheet[f'M{row}'].value = str(maxY)
 
         #max * pole state
-        sheet[f'O{row}'].value = realMaxX
-        sheet[f'P{row}'].value = realMaxY
+        sheet[f'N{row}'].value = str(realMaxX)
+        sheet[f'O{row}'].value = str(realMaxY)
 
         #only electrical
-        sheet[f'Q{row}'].value = calcX
-        sheet[f'R{row}'].value = calcY
+        sheet[f'P{row}'].value = str(calcX)
+        sheet[f'Q{row}'].value = str(calcY)
 
-        sheet[f'S{row}'].value = function
+        sheet[f'R{row}'].value = function
 
-        sheet[f'T{row}'].value = addedX
-        sheet[f'U{row}'].value = addedY
+        sheet[f'S{row}'].value = str(addedX)
+        sheet[f'T{row}'].value = str(addedY)
+
+        sheet[f'U{row}'].value = "Tak"
+        sheet[f'V{row}'].value = "Dobry"
 
         cableRow = row
 
         
         for cable in cables:
             for i in range(len(cable)):
+
+                
+               
+                
                 cableData = cable[i]
                 column = excelCablesRange[i]
                 cell = sheet[f'{column}{cableRow}']
+
+                if (i == 2): #degrees
+                    continue
+
+                if (i == 1): 
+                    cell.fill = fill
+                    cell.font = font     
+                
                 cell.value = cableData
-                cell.alignment = Alignment(horizontal='center', vertical='center')
+                cell.alignment = alignment
                 cell.border = border
+
+             
+
             cableRow += 1
 
         cableRow -= 1
         for colRange in excelRestCableDataRange:
+            cell = sheet[f'{colRange}{row}'];
+            cell.border = border
+            cell.alignment = alignment
             sheet.merge_cells(range_string = f'{colRange}{row}:{colRange}{cableRow}')
             # sheet.merge_cells(start_column = colRange ,start_row = row, end_column = colRange, end_row = cableRow)
 
