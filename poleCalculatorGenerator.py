@@ -107,8 +107,8 @@ def getPoleFromData(data):
     formattedString = data.strip('()')
     separatedStrings = formattedString.split(' ')
 
-    pole, function, number = separatedStrings
-    return {"pole":pole, "function": function, "number": number}
+    pole, number, function, station  = separatedStrings
+    return {"pole":pole, "number": number, "function": function, "station" : station}
 def handle_P(data, excel):
     indicator = data[0]
     #{"pole":pole, "function": function, "number": number}
@@ -120,7 +120,7 @@ def handle_P(data, excel):
     excel['G78'] = poleData['pole'];
     excel['J78'] = poleData['function'].upper();
     excel['G88'] = 15; #mufa
-    excel['L78'] = "-" #stacja
+    excel['L78'] = poleData['station'] #stacja
 def handle_M(data, excel):
     global mainCable
     
@@ -266,6 +266,8 @@ def handleData(data):
         for j in range(len(poleData)):
             table = poleData[j]
             #for each table handle p, m, a
+            if (table[0] is None):
+                break
             indicator = table[0].upper()
             if (indicator == 'P'):
                 handle_P(table, sheet)
@@ -391,7 +393,7 @@ def exportCalculatedData():
         row = cableRow + 1
 
     handleExcelFile(excel, path)
-result_table = ReadExcelData("C:\\Users\\BFS\\Documents\\polesData_wyniki.xlsx")
+result_table = ReadExcelData("C:\\Users\\BFS\\Documents\\polesData.xlsx")
 handleData(result_table)
 
 
