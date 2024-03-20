@@ -1,11 +1,10 @@
 import openpyxl
 from openpyxl.styles import Alignment, Border, Side, Font, PatternFill
-
-import re
 import math
 import shutil
 import xlwings
 from pathlib import Path
+import os
 
 mainCable = None;
 calculatedPoles = []
@@ -120,7 +119,9 @@ def handle_P(data, excel):
     excel['G78'] = poleData['pole'];
     excel['J78'] = poleData['function'].upper();
     excel['G88'] = 15; #mufa
-    excel['L78'] = poleData['station'] #stacja
+    excel['L78'] = poleData['station'] 
+
+    return poleData['station']
 def handle_M(data, excel):
     global mainCable
     
@@ -228,14 +229,24 @@ def exportDataFromCalculatedExcel(excel):
     }
 
     calculatedPoles.append(pole)  
+def cacheFormulasData(path, folderDir, number):
 
-def cacheFormulasData(path):
-    excel_app = xlwings.App(visible=False)
-    excel_book = excel_app.books.open(path)
-    excel_book.save()
-    excel_book.close()
-    excel_app.quit()
+    # excel = win32.gencache.EnsureDispatch('Excel.Application')
+    # excel.DisplayAlerts = False
+    # workbook = excel.Workbooks.Open(rf'{path}')
+    # # workbook.SaveAs(rf'{path}')
+    # # workbook.Save(True, rf'{path}')
+    # # workbook.Close(True, rf'{path}')
+    # # workbook.Close()
+    # excel.Quit()
+    # del excel
 
+    with xlwings.App(visible=False) as app:
+        wb = xlwings.Book(path)
+        wb.save(f"{folderDir}\\SŁUP_{number}.xlsx")
+        wb.close()
+    
+    return f"{folderDir}\\SŁUP_{number}.xlsx"
 def handleExcelFile(excel, path):
     sourceExcel = "C:\\Users\\BFS\\Documents\\kalkulator.xlsx"
     
@@ -246,7 +257,7 @@ def handleExcelFile(excel, path):
     else: 
         excel.save(path)
         excel.close()
-def handleData(data):
+def handleData(data, folderDir):
 
     for i in range(len(data)):
         global mainCable
@@ -257,40 +268,50 @@ def handleData(data):
             print("error", poleData)
             return any
         
-
-        newExcelPath = f'C:\\Users\\BFS\\Documents\\test{i}.xlsx'
+        
+        newExcelPath = f'{folderDir}\\tempCalculatorFile.xlsx'
         excel = handleExcelFile(None, newExcelPath)
         excel.active = excel["KALKULATOR"];
         sheet = excel.active;
-
+        poleStation = None
         for j in range(len(poleData)):
             table = poleData[j]
-            #for each table handle p, m, a
             if (table[0] is None):
                 break
             indicator = table[0].upper()
             if (indicator == 'P'):
-                handle_P(table, sheet)
+                poleStation = handle_P(table, sheet)
                 next
             if (indicator == 'M' or indicator == "A"):
                 handle_M(table, sheet)
                 next
         
         handleExcelFile(excel, newExcelPath)
-        cacheFormulasData(newExcelPath)
-        excel = openpyxl.load_workbook(newExcelPath, data_only=True)
+
+        def handleStationDir():
+            if (poleStation is not None and os.path.exists(f'{folderDir}\\{poleStation}') is False):
+                os.mkdir(f'{folderDir}\\{poleStation}')
+            return f'{folderDir}\\{poleStation}'
+        finalExcelPath = cacheFormulasData(newExcelPath, handleStationDir(), i)
+        excel = openpyxl.load_workbook(finalExcelPath, data_only=True)
 
         exportDataFromCalculatedExcel(excel)
-        handleExcelFile(excel, newExcelPath)
-    exportCalculatedData()
+        handleExcelFile(excel, finalExcelPath)
+    exportCalculatedData(folderDir)
 
-def exportCalculatedData():
+    if (os.path.isfile(f'{folderDir}\\tempCalculatorFile.xlsx')):
+        try:
+            os.remove(f'{folderDir}\\tempCalculatorFile.xlsx')
+        except:
+            print("Coudn't close temp calculator file")
+
+def exportCalculatedData(folderDir):
     #check if file exist
     #open file
     global calculatedPoles
     # print(calculatedPoles[0]['cables'])
     # return
-    path = "C:\\Users\\BFS\\Documents\\ZestawienieTemp.xlsx"
+    path = f"{folderDir}\\Zestawienie obliczeń.xlsx"
     def handleExcelForExportedData():
         file = Path(path)
         if (file.exists()):
@@ -393,7 +414,17 @@ def exportCalculatedData():
         row = cableRow + 1
 
     handleExcelFile(excel, path)
-result_table = ReadExcelData("C:\\Users\\BFS\\Documents\\polesData.xlsx")
-handleData(result_table)
+result_table = ReadExcelData("C:\\Users\\BFS\\Documents\\polesData.xlsx")\
+
+def handleFolders():
+    resultsFolderPath = 'C:\\Users\\BFS\Documents\OBLICZENIA_WYTRZYMAŁOŚCI_SŁUPÓW'
+
+    if (os.path.exists(resultsFolderPath) is False):
+        os.makedirs(resultsFolderPath)
+    return resultsFolderPath
+
+    
+folderDir = handleFolders()
+handleData(result_table, folderDir)
 
 
