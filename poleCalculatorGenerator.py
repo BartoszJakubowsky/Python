@@ -1,4 +1,6 @@
 import openpyxl
+import customtkinter as ctk
+from customtkinter import filedialog
 from openpyxl.styles import Alignment, Border, Side, Font, PatternFill
 import math
 import shutil
@@ -8,6 +10,12 @@ import os
 
 mainCable = None;
 calculatedPoles = []
+scriptPath = os.path.abspath(__file__)
+scriptDirPath = os.path.dirname(scriptPath)
+documentsDirPath = os.path.join(os.path.expanduser("~"), "Documents")
+root = ctk.CTk()
+root.withdraw()
+
 def ReadExcelData(file_path):
     # Load the Excel file
     workbook = openpyxl.load_workbook(file_path)
@@ -16,6 +24,7 @@ def ReadExcelData(file_path):
     sheet = workbook.active
     
     # Get the number of rows and columns
+
     rows = sheet.max_row
     cols = sheet.max_column
     
@@ -248,8 +257,9 @@ def cacheFormulasData(path, folderDir, number):
     
     return f"{folderDir}\\SŁUP_{number}.xlsx"
 def handleExcelFile(excel, path):
-    sourceExcel = "C:\\Users\\BFS\\Documents\\kalkulator.xlsx"
-    
+    # sourceExcel = "C:\\Users\\BFS\\Documents\\kalkulator.xlsx"
+    global scriptDirPath
+    sourceExcel = os.path.join(scriptDirPath, "kalkulator.xlsx")
     if (excel is None):
         shutil.copy(sourceExcel, path)
         excel = openpyxl.load_workbook(path)
@@ -309,6 +319,7 @@ def exportCalculatedData(folderDir):
     #check if file exist
     #open file
     global calculatedPoles
+    global scriptDirPath
     # print(calculatedPoles[0]['cables'])
     # return
     path = f"{folderDir}\\Zestawienie obliczeń.xlsx"
@@ -317,7 +328,8 @@ def exportCalculatedData(folderDir):
         if (file.exists()):
             return openpyxl.load_workbook(path)
         else: 
-            shutil.copy("C:\\Users\\BFS\\Documents\\Zestawienie obliczeń.xlsx", path)
+            # shutil.copy("C:\\Users\\BFS\\Documents\\Zestawienie obliczeń.xlsx", path)
+            shutil.copy(os.path.join(scriptDirPath, "Zestawienie obliczeń.xlsx"), path)
             return openpyxl.load_workbook(path)
         
     excel = handleExcelForExportedData()
@@ -414,10 +426,24 @@ def exportCalculatedData(folderDir):
         row = cableRow + 1
 
     handleExcelFile(excel, path)
-result_table = ReadExcelData("C:\\Users\\BFS\\Documents\\polesData.xlsx")\
+# result_table = ReadExcelData("C:\\Users\\BFS\\Documents\\polesData.xlsx")\
+tablePath = filedialog.askopenfilename(title="Wybierz plik Excel z zestawieniem słupów", filetypes=(("Excel files", "*.xlsx"), ("All files", "*.*")))
+
+if (bool (tablePath) is False):
+    print("Nie wybrano ścieżki z zestawieniem słupów")
+    print("Program zakończony niepowodzeniem")
+    exit()
+
+# result_table = ReadExcelData("C:\\Users\\BFS\\Documents\\polesData.xlsx")
+result_table = ReadExcelData(tablePath)
 
 def handleFolders():
-    resultsFolderPath = 'C:\\Users\\BFS\Documents\OBLICZENIA_WYTRZYMAŁOŚCI_SŁUPÓW'
+    # resultsFolderPath = 'C:\\Users\\BFS\Documents\OBLICZENIA_WYTRZYMAŁOŚCI_SŁUPÓW'
+    chosenResultsFolderPath = filedialog.askdirectory(title="Wybierz folder, w którym mają zostać stworzone obliczenia")
+    if (bool(chosenResultsFolderPath is False)):
+        print("Nie wybrano folderu do wstawienia obliczeń")
+        return False
+    resultsFolderPath = os.path.join(chosenResultsFolderPath, "OBLICZENIA_WYTRZYMAŁOŚCI_SŁUPÓW")
 
     if (os.path.exists(resultsFolderPath) is False):
         os.makedirs(resultsFolderPath)
@@ -425,6 +451,11 @@ def handleFolders():
 
     
 folderDir = handleFolders()
-handleData(result_table, folderDir)
 
+if (folderDir is False):
+    print("Program zakończony niepowodzeniem")
+    exit()
+
+handleData(result_table, folderDir)
+print("Program zakończony powodzeniem")
 
