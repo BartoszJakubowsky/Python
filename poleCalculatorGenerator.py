@@ -313,7 +313,7 @@ def handleData(data, folderDir):
         try:
             os.remove(f'{folderDir}\\tempCalculatorFile.xlsx')
         except:
-            print("Coudn't close temp calculator file")
+            print("Wystąpił błąd podczas zamykania pliku tymczasowego excel, zgłoś problem developerowi")
 
 def exportCalculatedData(folderDir):
     #check if file exist
@@ -449,7 +449,8 @@ def handleFolders():
         os.makedirs(resultsFolderPath)
     return resultsFolderPath
 
-    
+
+print("Program uruchomiony pomyślnie")    
 folderDir = handleFolders()
 
 if (folderDir is False):
