@@ -4,6 +4,25 @@ from docx2pdf import convert
 import openpyxl 
 import os
 
+sameOwners = []
+def checkSameOwner(pesel, excelData):
+    ownPlots = []
+
+    firstRow = True
+    for data in excelData:
+        if firstRow:
+            firstRow = False
+            continue
+        
+        PESEL = str(data[4]).strip()
+        land_registry_number = str(data[2]).strip()
+        plot_registration_number = str(data[3]).strip()
+        if (PESEL is pesel):
+            sameOwners.append(pesel)
+            ownPlots.append([land_registry_number, plot_registration_number])
+    
+    return ownPlots
+
 def createPlotForms(excelData):
 
 
@@ -30,12 +49,19 @@ def createPlotForms(excelData):
         PESEL = str(data[4]).strip()
         postal_code = data[5].strip()
         city = data[6].strip()
-        name = data[7]
-
+        name = data[7].strip()
         postal_code = postal_code.replace('-', "")
-        
 
-        p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11 = list(PESEL)
+        if PESEL in sameOwners:
+            continue
+        
+        allPLots = checkSameOwner(PESEL, excelData)
+        try:
+            p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11 = list(PESEL)
+        except:
+            p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11 = ["","","","","","","","","","",""]
+            
+        # p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11 = list(PESEL)
         c1,c2,c3,c4,c5 = list(postal_code)
 
         doc = Document('C:\\Users\\BFS\Documents\\Oświadczenie_KPO_template.docx')
@@ -56,7 +82,12 @@ def createPlotForms(excelData):
                             case '{house_number}':
                                 paragraph.text = paragraph.text.replace('{house_number}', house_number)
                             case '{land_registry_number}':
-                                paragraph.text = paragraph.text.replace('{land_registry_number}', f'{land_registry_number} / {plot_registration_number}')
+                                allPlotText = []
+                                separator = '\n'
+                                for land_plot_number in allPLots:
+                                    allPlotText.append(f'{land_plot_number[0]} / {land_plot_number[1]}')
+                                allPlotTextJoined = separator.join(allPlotText)
+                                paragraph.text = paragraph.text.replace('{land_registry_number}', f'{allPlotTextJoined}')
                             # case '{plot_registration_number}':
                             #     paragraph.text = paragraph.text.replace('{plot_registration_number}', plot_registration_number)
                             case '{postal_code}':
@@ -98,9 +129,27 @@ def createPlotForms(excelData):
                             case _:
                                 continue
                         paragraph.style = doc.styles['Normal']
-        plot_registration_number = plot_registration_number.replace('/', "_")
-        doc.save(os.path.join(wordDirPath, f'{plot_registration_number}.docx'))
-        convert(os.path.join(wordDirPath, f'{plot_registration_number}.docx'), pdfDirPath)
+        file_path_plots = []
+        separator = ", "
+        for plot in allPLots:
+            plot_registration_number = plot[1].replace('/', "_")
+            file_path_plots.append(f'{plot_registration_number}')
+        
+        file_path_plots.append(name)
+        file_path_plots_joined = separator.join(file_path_plots)
+        file_path = os.path.join(wordDirPath, f'{file_path_plots_joined}.docx')
+        
+        if (os.path.exists(file_path)):
+            i = 1
+            while True:
+                file_path = os.path.join(wordDirPath, f'{file_path_plots_joined} ({i}).docx')
+                if (os.path.exists(file_path)): 
+                    i+=1
+                else:
+                    break
+
+        doc.save(file_path)
+        # convert(file_path, pdfDirPath)
 
 
 def readExcel():
