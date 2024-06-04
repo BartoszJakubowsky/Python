@@ -16,39 +16,30 @@ documentsDirPath = os.path.join(os.path.expanduser("~"), "Documents")
 root = ctk.CTk()
 root.withdraw()
 
-def ReadExcelData(file_path):
-    # Load the Excel file
+#reads excel file containing all poles data from cad
+def readSourceExcelData(file_path):
     workbook = openpyxl.load_workbook(file_path)
-    
-    # Get the active sheet
     sheet = workbook.active
-    
-    # Get the number of rows and columns
 
     rows = sheet.max_row
     cols = sheet.max_column
     
-    # Initialize the data table
+    #store all rows data
     data_table = []
 
-    # Iterate through rows, starting from row 1 and incrementing by 4
+    # Iterate through rows, starting from row 1 and incrementing by 4 (data's length)
     for row_start in range(1, rows + 1, 4):
-        # Initialize an object for the current range
+        #stores current row data
         data_object = []
         
-        # Iterate through columns
         for col in range(1, cols + 1):
             # Get values from the current range
             cell_value = [sheet.cell(row=row, column=col).value for row in range(row_start, row_start + 4)]
-            
-            # Add values to the object
             data_object.append(cell_value)
         
-        # Add the object to the data table
         data_table.append(data_object)
 
     return data_table
-#table of tables -> one table one pole with all equipment
 
 def countLength(cordsA, cordsB):
     x1, y1 = cordsA
@@ -57,6 +48,7 @@ def countLength(cordsA, cordsB):
     length = round(math.sqrt((x2 - x1)**2 + (y2 - y1)**2))
 
     return length
+
 def countDeq(coordsA):
     global mainCable
     if (mainCable is None):
@@ -78,6 +70,7 @@ def countDeq(coordsA):
         deg = round(math.degrees(math.acos(min(1, max(-1, degCos)))))
 
     return deg + 90
+
 def formatCablesString(inputString):
     #trim string
     trimmed_string = inputString.strip()
@@ -104,6 +97,7 @@ def formatCablesString(inputString):
             parts[i] = part.replace('n', 'n ')
 
     return parts
+
 def formatCoordsString(coordsA):
 
     coordsA = coordsA.strip('()')
@@ -111,17 +105,18 @@ def formatCoordsString(coordsA):
     x1, y1 = map(float, coordsA[:2])
  
     return [x1, y1];
+
+#returns {"pole":pole, "function": function, "number": number, "station": station}
 def getPoleFromData(data):
     formattedString = data.strip('()')
     separatedStrings = formattedString.split(' ')
 
     pole, number, function, station  = separatedStrings
     return {"pole":pole, "number": number, "function": function, "station" : station}
-def handle_P(data, excel):
-    indicator = data[0]
-    #{"pole":pole, "function": function, "number": number}
+
+#puts only pole's data into calculator  excel 
+def handle_Pole(data, excel):
     poleData = getPoleFromData(data[1])
-    cords = data[3]
     
     print(poleData)
     excel['C78'] = poleData['number']; 
@@ -131,7 +126,9 @@ def handle_P(data, excel):
     excel['L78'] = poleData['station'] 
 
     return poleData['station']
-def handle_M(data, excel):
+
+#puts only cable's data into calculator excel
+def handle_Cable(data, excel):
     global mainCable
     
     indicator = data[0].upper()
@@ -175,6 +172,8 @@ def handle_M(data, excel):
     if (mainCable is None and indicator == "M"):
         mainCable = [coordsA, coordsB]
 
+#exports data from calculated pole's excel file
+#puts calculated data into global calculatedPoles table
 def exportDataFromCalculatedExcel(excel):
 
     global calculatedPoles
@@ -213,12 +212,16 @@ def exportDataFromCalculatedExcel(excel):
     
     maxX = round(float(sheet['D2'].value),2)
     maxY = round(float(sheet['D3'].value),2)
-    realMaxX = round(maxX*0.1,2)
-    realMaxY = round(maxY*0.1,2)
-    calcX = round(float(sheet["B2"].value),2)
-    calcY = round(float(sheet["B3"].value),2)
-    addedX = round(float(sheet["G2"].value),2)
-    addedY = round(float(sheet["G3"].value),2)
+    # realMaxX = round(maxX*0.1,2)
+    # realMaxY = round(maxY*0.1,2)
+    realMaxX = round(float(sheet['B2'].value),2)
+    realMaxY = round(float(sheet['B3'].value),2)
+    calcX = round(float(sheet["G2"].value),2)
+    calcY = round(float(sheet["G3"].value),2)
+    # addedX = round(float(sheet["G2"].value),2)
+    # addedY = round(float(sheet["G3"].value),2)
+    addedX = round(float(realMaxX - calcX),2)
+    addedY = round(float(realMaxX - calcY),2)
 
     pole = {
         "lp": lp,
@@ -238,17 +241,11 @@ def exportDataFromCalculatedExcel(excel):
     }
 
     calculatedPoles.append(pole)  
-def cacheFormulasData(path, folderDir, number):
 
-    # excel = win32.gencache.EnsureDispatch('Excel.Application')
-    # excel.DisplayAlerts = False
-    # workbook = excel.Workbooks.Open(rf'{path}')
-    # # workbook.SaveAs(rf'{path}')
-    # # workbook.Save(True, rf'{path}')
-    # # workbook.Close(True, rf'{path}')
-    # # workbook.Close()
-    # excel.Quit()
-    # del excel
+#saves calculated pole excel
+#thank's to opening file, formulas can be read as data if necessary 
+#returns path to calculated excel file
+def cacheFormulasData(path, folderDir, number):
 
     with xlwings.App(visible=False) as app:
         wb = xlwings.Book(path)
@@ -256,8 +253,9 @@ def cacheFormulasData(path, folderDir, number):
         wb.close()
     
     return f"{folderDir}\\SŁUP_{number}.xlsx"
+
+#saves or creates file 
 def handleExcelFile(excel, path):
-    # sourceExcel = "C:\\Users\\BFS\\Documents\\kalkulator.xlsx"
     global scriptDirPath
     sourceExcel = os.path.join(scriptDirPath, "kalkulator.xlsx")
     if (excel is None):
@@ -267,68 +265,19 @@ def handleExcelFile(excel, path):
     else: 
         excel.save(path)
         excel.close()
-def handleData(data, folderDir):
 
-    for i in range(len(data)):
-        global mainCable
-        mainCable = None
-        poleData = data[i]
-
-        if (len(poleData) <=1): 
-            print("error", poleData)
-            return any
-        
-        
-        newExcelPath = f'{folderDir}\\tempCalculatorFile.xlsx'
-        excel = handleExcelFile(None, newExcelPath)
-        excel.active = excel["KALKULATOR"];
-        sheet = excel.active;
-        poleStation = None
-        for j in range(len(poleData)):
-            table = poleData[j]
-            if (table[0] is None):
-                break
-            indicator = table[0].upper()
-            if (indicator == 'P'):
-                poleStation = handle_P(table, sheet)
-                next
-            if (indicator == 'M' or indicator == "A"):
-                handle_M(table, sheet)
-                next
-        
-        handleExcelFile(excel, newExcelPath)
-
-        def handleStationDir():
-            if (poleStation is not None and os.path.exists(f'{folderDir}\\{poleStation}') is False):
-                os.mkdir(f'{folderDir}\\{poleStation}')
-            return f'{folderDir}\\{poleStation}'
-        finalExcelPath = cacheFormulasData(newExcelPath, handleStationDir(), i)
-        excel = openpyxl.load_workbook(finalExcelPath, data_only=True)
-
-        exportDataFromCalculatedExcel(excel)
-        handleExcelFile(excel, finalExcelPath)
-    exportCalculatedData(folderDir)
-
-    if (os.path.isfile(f'{folderDir}\\tempCalculatorFile.xlsx')):
-        try:
-            os.remove(f'{folderDir}\\tempCalculatorFile.xlsx')
-        except:
-            print("Wystąpił błąd podczas zamykania pliku tymczasowego excel, zgłoś problem developerowi")
-
+#exports collected calculated poles data "calculatedPoles" 
+#into one final excel
 def exportCalculatedData(folderDir):
-    #check if file exist
-    #open file
     global calculatedPoles
     global scriptDirPath
-    # print(calculatedPoles[0]['cables'])
-    # return
     path = f"{folderDir}\\Zestawienie obliczeń.xlsx"
+
     def handleExcelForExportedData():
         file = Path(path)
         if (file.exists()):
             return openpyxl.load_workbook(path)
         else: 
-            # shutil.copy("C:\\Users\\BFS\\Documents\\Zestawienie obliczeń.xlsx", path)
             shutil.copy(os.path.join(scriptDirPath, "Zestawienie obliczeń.xlsx"), path)
             return openpyxl.load_workbook(path)
         
@@ -344,6 +293,7 @@ def exportCalculatedData(folderDir):
     font = Font(bold=True)
     fill = PatternFill(start_color='D9E1F2', end_color='D9E1F2', fill_type = "solid")
 
+    #where the final magic happens :)
     row = 3;
     for calcPole in calculatedPoles:
         lp = calcPole["lp"]
@@ -388,14 +338,10 @@ def exportCalculatedData(folderDir):
         sheet[f'V{row}'].value = "Dobry"
 
         cableRow = row
-
         
         for cable in cables:
             for i in range(len(cable)):
 
-                
-               
-                
                 cableData = cable[i]
                 column = excelCablesRange[i]
                 cell = sheet[f'{column}{cableRow}']
@@ -411,8 +357,6 @@ def exportCalculatedData(folderDir):
                 cell.alignment = alignment
                 cell.border = border
 
-             
-
             cableRow += 1
 
         cableRow -= 1
@@ -426,19 +370,8 @@ def exportCalculatedData(folderDir):
         row = cableRow + 1
 
     handleExcelFile(excel, path)
-# result_table = ReadExcelData("C:\\Users\\BFS\\Documents\\polesData.xlsx")\
-tablePath = filedialog.askopenfilename(title="Wybierz plik Excel z zestawieniem słupów", filetypes=(("Excel files", "*.xlsx"), ("All files", "*.*")))
 
-if (bool (tablePath) is False):
-    print("Nie wybrano ścieżki z zestawieniem słupów")
-    print("Program zakończony niepowodzeniem")
-    exit()
-
-# result_table = ReadExcelData("C:\\Users\\BFS\\Documents\\polesData.xlsx")
-result_table = ReadExcelData(tablePath)
-
-def handleFolders():
-    # resultsFolderPath = 'C:\\Users\\BFS\Documents\OBLICZENIA_WYTRZYMAŁOŚCI_SŁUPÓW'
+def createMainFolder():
     chosenResultsFolderPath = filedialog.askdirectory(title="Wybierz folder, w którym mają zostać stworzone obliczenia")
     if (bool(chosenResultsFolderPath is False)):
         print("Nie wybrano folderu do wstawienia obliczeń")
@@ -449,14 +382,101 @@ def handleFolders():
         os.makedirs(resultsFolderPath)
     return resultsFolderPath
 
+def handleData(data, folderDir):
+
+    #for each row == for each pole
+    for i in range(len(data)):
+        global mainCable
+        mainCable = None
+        poleData = data[i]
+        
+        #catch empty row
+        if (len(poleData) <=1): 
+            print("error", poleData)
+            return any
+        
+        #temporary file for storing current calculating pole
+        newExcelPath = f'{folderDir}\\tempCalculatorFile.xlsx'
+        excel = handleExcelFile(None, newExcelPath)
+        excel.active = excel["KALKULATOR"];
+        sheet = excel.active;
+            
+        poleStation = None
+        currentPoleNumber = None
+        for j in range(len(poleData)):
+            
+            #here's actual data in form of a table
+            #this is a 4 cell collection from source excel
+            #first element of this table is always indicator
+            table = poleData[j]
+            if (table[0] is None):
+                break
+
+            #first table element == first cell above actual data in source excel
+            #it indicates if this is a pole (P) or a cable (M or A)
+            indicator = table[0].upper()
+
+            #below all magic happens where data is placed into sheet
+            if (indicator == 'P'):
+                poleStation = handle_Pole(table, sheet)
+                currentPole = getPoleFromData(table[1])
+                currentPoleNumber = currentPole['number']
+                next
+            if (indicator == 'M' or indicator == "A"):
+                handle_Cable(table, sheet)
+                next
+
+        #saves temp excel file 
+        handleExcelFile(excel, newExcelPath)
+
+        #creates a folder based on station name, where are calculated poles 
+        #from this station is placed
+        def handleStationDir():
+            if (poleStation is not None and os.path.exists(f'{folderDir}\\{poleStation}') is False):
+                os.mkdir(f'{folderDir}\\{poleStation}')
+            return f'{folderDir}\\{poleStation}'
+        
+        #calculated pole excel file
+        finalExcelPath = cacheFormulasData(newExcelPath, handleStationDir(), currentPoleNumber)
+
+        #open calculated pole excel file with calculated formulas showed as data
+        excel = openpyxl.load_workbook(finalExcelPath, data_only=True)
+
+        #exports all data putted into pole excel file
+        exportDataFromCalculatedExcel(excel)
+
+        handleExcelFile(excel, finalExcelPath)
+
+    #exports all calculated poles to one final excel
+    exportCalculatedData(folderDir)
+    #end of handleData function
+
+    if (os.path.isfile(f'{folderDir}\\tempCalculatorFile.xlsx')):
+        try:
+            os.remove(f'{folderDir}\\tempCalculatorFile.xlsx')
+        except:
+            print("Wystąpił błąd podczas zamykania pliku tymczasowego excel, zgłoś problem developerowi")
+
+#####################################
+########## PROGRAM START ############
+#####################################
+
+source_data = filedialog.askopenfilename(title="Wybierz plik Excel z zestawieniem słupów", filetypes=(("Excel files", "*.xlsx"), ("All files", "*.*")))
+
+if (bool (source_data) is False):
+    print("Nie wybrano ścieżki z zestawieniem słupów")
+    print("Program zakończony niepowodzeniem")
+    exit()
+
+source_table_data = readSourceExcelData(source_data)
 
 print("Program uruchomiony pomyślnie")    
-folderDir = handleFolders()
+folderDir = createMainFolder()
 
 if (folderDir is False):
     print("Program zakończony niepowodzeniem")
     exit()
 
-handleData(result_table, folderDir)
+handleData(source_table_data, folderDir)
 print("Program zakończony powodzeniem")
 
