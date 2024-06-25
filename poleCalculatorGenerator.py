@@ -76,25 +76,24 @@ def formatCablesString(inputString):
     trimmed_string = inputString.strip()
 
     #separate satring after +
-    parts = trimmed_string.split('+')
     parts = trimmed_string.split('-')
 
     #format string
-    for i in range(len(parts)):
-        part = parts[i]
+    # for i in range(len(parts)):
+    #     part = parts[i]
 
-        if 'adss' in part:
-            last_s_index = part.rfind('s')
-            parts[i] = part[:last_s_index + 1] + ' ' + part[last_s_index + 1:]
+    #     if 'adss' in part:
+    #         last_s_index = part.rfind('s')
+    #         parts[i] = part[:last_s_index + 1] + ' ' + part[last_s_index + 1:]
 
-        if 'al' in part:
-            if 'l.' not in part:
-                parts[i] = part.replace('l', 'l. ')
-            else:
-                parts[i] = part.replace('l.', 'l. ')
+    #     if 'al' in part:
+    #         if 'l.' not in part:
+    #             parts[i] = part.replace('l', 'l. ')
+    #         else:
+    #             parts[i] = part.replace('l.', 'l. ')
 
-        if 'asxsn' in part:
-            parts[i] = part.replace('n', 'n ')
+    #     if 'asxsn' in part:
+    #         parts[i] = part.replace('n', 'n ')
 
     return parts
 
@@ -110,14 +109,12 @@ def formatCoordsString(coordsA):
 def getPoleFromData(data):
     formattedString = data.strip('()')
     separatedStrings = formattedString.split(' ')
-
-    pole, number, function, station  = separatedStrings
-    return {"pole":pole, "number": number, "function": function, "station" : station}
+    pole, number, function, station, number_ok  = separatedStrings
+    return {"pole":pole, "number": number, "function": function, "station" : station, "number_ok": number_ok}
 
 #puts only pole's data into calculator  excel 
 def handle_Pole(data, excel):
     poleData = getPoleFromData(data[1])
-    
     print(poleData)
     excel['C78'] = poleData['number']; 
     excel['G78'] = poleData['pole'];
@@ -420,7 +417,7 @@ def handleData(data, folderDir):
             if (indicator == 'P'):
                 poleStation = handle_Pole(table, sheet)
                 currentPole = getPoleFromData(table[1])
-                currentPoleNumber = currentPole['number']
+                currentPoleNumber = currentPole['number_ok']
                 next
             if (indicator == 'M' or indicator == "A"):
                 handle_Cable(table, sheet)
