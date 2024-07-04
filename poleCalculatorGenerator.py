@@ -56,20 +56,21 @@ def countDeq(coordsA):
 
     coordsB = mainCable
 
-    vector1 = [b - a for a, b in zip(coordsA[0], coordsB[0])]
-    vector2 = [b - a for a, b in zip(coordsA[1], coordsB[1])]
+    vector1 = [b - a for a, b in zip(coordsA[0], coordsA[1])]
+    vector2 = [b - a for a, b in zip(coordsB[1], coordsB[0])]
 
     dotProduct = sum(a * b for a, b in zip(vector1, vector2))
     vectorLength1 = math.sqrt(sum(a**2 for a in vector1))
     vectorLength2 = math.sqrt(sum(b**2 for b in vector2))
 
-    if vectorLength1 == 0 or vectorLength2 == 0:
-        deg = 180
-    else:
-        degCos = dotProduct / (vectorLength1 * vectorLength2)
-        deg = round(math.degrees(math.acos(min(1, max(-1, degCos)))))
+    # if vectorLength1 == 0 or vectorLength2 == 0:
+        # deg = 180
+    # else:
+    degCos = dotProduct / (vectorLength1 * vectorLength2)
+    deg = round(math.degrees(math.acos(min(1, max(-1, degCos))))) + 90
 
-    return deg + 90
+    
+    return deg
 
 def formatCablesString(inputString):
     #trim string
@@ -192,9 +193,19 @@ def exportDataFromCalculatedExcel(excel):
         cellA = sheetRange[0][i]
         cellB = sheetRange[1][i]
         cells = sheet[cellA : cellB]                
-
         rowData = []
-        for cell in cells[0]:
+        for i, cell in enumerate(cells[0]):
+            
+            if (isinstance(cell.value, str) and "ADSS" not in cell.value and i == 2):
+                rowData.append(cell.value)
+                rowData.append(None)
+                rowData.append("-")
+                rowData.append("-")
+                rowData.append("-")
+                rowData.append("-")
+                rowData.append("-")
+                break;
+            
             rowData.append(cell.value)
         dataFromSheetRange.append(rowData)
 
@@ -217,8 +228,8 @@ def exportDataFromCalculatedExcel(excel):
     calcY = round(float(sheet["G3"].value),2)
     # addedX = round(float(sheet["G2"].value),2)
     # addedY = round(float(sheet["G3"].value),2)
-    addedX = round(float(realMaxX - calcX),2)
-    addedY = round(float(realMaxX - calcY),2)
+    addedX = round((realMaxX - calcX),2)
+    addedY = round((realMaxY - calcY),2)
 
     pole = {
         "lp": lp,
@@ -326,13 +337,13 @@ def exportCalculatedData(folderDir):
         sheet[f'P{row}'].value = str(calcX)
         sheet[f'Q{row}'].value = str(calcY)
 
-        sheet[f'R{row}'].value = function
+        # sheet[f'R{row}'].value = function
 
-        sheet[f'S{row}'].value = str(addedX)
-        sheet[f'T{row}'].value = str(addedY)
+        sheet[f'R{row}'].value = str(addedX)
+        sheet[f'S{row}'].value = str(addedY)
 
-        sheet[f'U{row}'].value = "Tak"
-        sheet[f'V{row}'].value = "Dobry"
+        sheet[f'T{row}'].value = "Tak"
+        sheet[f'U{row}'].value = "Dobry"
 
         cableRow = row
         
