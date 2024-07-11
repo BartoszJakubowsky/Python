@@ -65,6 +65,6 @@ def main():
         pdfs_len =+ 1
 
     print("All pdfs")
-    print(pdfs_len)
+    print(pdfs_len) 
 if __name__ == "__main__":
     main()

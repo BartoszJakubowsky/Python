@@ -63,11 +63,11 @@ def countDeq(coordsA):
     vectorLength1 = math.sqrt(sum(a**2 for a in vector1))
     vectorLength2 = math.sqrt(sum(b**2 for b in vector2))
 
-    # if vectorLength1 == 0 or vectorLength2 == 0:
-        # deg = 180
-    # else:
-    degCos = dotProduct / (vectorLength1 * vectorLength2)
-    deg = round(math.degrees(math.acos(min(1, max(-1, degCos))))) + 90
+    if vectorLength1 == 0 or vectorLength2 == 0:
+        deg = 180
+    else:
+        degCos = dotProduct / (vectorLength1 * vectorLength2)
+        deg = round(math.degrees(math.acos(min(1, max(-1, degCos))))) + 90
 
     
     return deg
@@ -109,7 +109,7 @@ def formatCoordsString(coordsA):
 #returns {"pole":pole, "function": function, "number": number, "station": station}
 def getPoleFromData(data):
     formattedString = data.strip('()')
-    separatedStrings = formattedString.split(' ')
+    separatedStrings = formattedString.split('_')
     pole, number, function, station, number_ok  = separatedStrings
     return {"pole":pole, "number": number, "function": function, "station" : station, "number_ok": number_ok}
 
